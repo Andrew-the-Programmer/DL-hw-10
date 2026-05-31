@@ -70,24 +70,18 @@ class MathVLMProcessor:
 
     def tokenize_sample(self, sample: MathVQASample) -> dict[str, torch.Tensor]:
         """Return input_ids, attention_mask and labels with explicit visual token insertion."""
-        # 1. Build prompt without visual tokens
         prompt_text = self.build_prompt(sample, include_answer=False)
         full_text = self.build_prompt(sample, include_answer=True)
 
-        # 2. Tokenize text (no visual tokens yet)
         prompt_ids = self.tokenizer.encode(prompt_text, add_special_tokens=False)
         full_ids = self.tokenizer.encode(full_text, add_special_tokens=False)
 
-        # 3. Create visual token sequence: [start] + K * [image_token] + [end]
-        #    Ensure the tokenizer knows the image token
         image_token_id = self.tokenizer.convert_tokens_to_ids("<tr>")
         if image_token_id == self.tokenizer.unk_token_id:
-            # Fallback: use a known token (e.g., <unk>) – not ideal but prevents crash
             image_token_id = self.tokenizer.unk_token_id
 
         start_token_id = self.tokenizer.convert_tokens_to_ids("<image_start>")
         end_token_id = self.tokenizer.convert_tokens_to_ids("<image_end>")
-        # If these are not in vocabulary, use a placeholder (or ignore)
         visual_ids = []
         if start_token_id != self.tokenizer.unk_token_id:
             visual_ids.append(start_token_id)
@@ -95,16 +89,13 @@ class MathVLMProcessor:
         if end_token_id != self.tokenizer.unk_token_id:
             visual_ids.append(end_token_id)
 
-        # 4. Insert visual tokens at the beginning of the sequence
         full_ids = visual_ids + full_ids
         prompt_ids = visual_ids + prompt_ids  # for label masking
 
-        # 5. Truncate if needed
         if len(full_ids) > self.config.max_length:
             full_ids = full_ids[: self.config.max_length]
             prompt_ids = prompt_ids[: self.config.max_length]
 
-        # 6. Build labels: mask all tokens before the answer (prompt part)
         prompt_len = len(prompt_ids)
         labels = full_ids.copy()
         labels[:prompt_len] = [self.config.ignore_index] * prompt_len
