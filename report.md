@@ -5,16 +5,16 @@
 Выбранный трек:
 
 ```text
-A / B / C
+В
 ```
 
 ## Что реализовано
 
-- [ ] dataset.py
-- [ ] processor.py
-- [ ] model.py
-- [ ] train.py
-- [ ] benchmark.py
+- [x] dataset.py
+- [x] processor.py
+- [x] model.py
+- [x] train.py
+- [x] benchmark.py
 
 ## Конфигурация
 

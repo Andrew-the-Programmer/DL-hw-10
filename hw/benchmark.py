@@ -35,14 +35,20 @@ def parse_mc_answer(text: str, choices: tuple[str, ...] = CHOICES) -> str | None
             "Answer: C"
             "The correct answer is D."
     """
+    text = text.strip()
     patterns = [
-        fr"\b([{''.join(choices)}])\b",  # standalone letter
+        r"\b([A-E])\b",
+        r"\(([A-E])\)",
+        r"Ответ:\s*([A-E])",
+        r"answer:\s*([A-E])",
+        r"правильный ответ\s*([A-E])",
+        r"is\s+([A-E])",
     ]
     for pat in patterns:
-        m = re.search(pat, text)
+        m = re.search(pat, text, re.IGNORECASE)
         if m:
-            return m.group(1)
-    raise RuntimeError("parse_mc_answer could not match.")
+            return m.group(1).upper()
+    return None
 
 
 def build_benchmark_prompt(question: str, options: list[str]) -> str:

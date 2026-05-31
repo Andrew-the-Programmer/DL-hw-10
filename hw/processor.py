@@ -11,6 +11,8 @@ from hw.dataset import MathVQASample
 
 import torch.nn.functional as F
 
+import numpy as np
+
 
 @dataclass
 class ProcessorConfig:
@@ -52,7 +54,10 @@ class MathVLMProcessor:
         image_tensor = torch.from_numpy(img_np)
         image_tensor = image_tensor.view(n, image_size, n, image_size, 3)
         image_tensor = image_tensor.permute(0, 2, 1, 3, 4)
-        image_tensor = image_tensor.reshape(self.config.num_tiles, image_size, image_size, 3)
+        image_tensor = image_tensor.reshape(
+            self.config.num_tiles, image_size, image_size, 3
+        )
+        image_tensor = image_tensor.permute(0, 3, 1, 2)
         return image_tensor
 
     def build_prompt(self, sample: MathVQASample, include_answer: bool) -> str:
