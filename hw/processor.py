@@ -9,6 +9,8 @@ from PIL import Image
 from hw.constants import IMAGE_END_TOKEN, IMAGE_START_TOKEN, IMAGE_TOKEN, IGNORE_INDEX
 from hw.dataset import MathVQASample
 
+import torch.nn.functional as F
+
 
 @dataclass
 class ProcessorConfig:
@@ -40,7 +42,15 @@ class MathVLMProcessor:
             - split into tiles if num_tiles > 1;
             - normalize to float tensor.
         """
-        raise NotImplementedError("Implement image preprocessing")
+        # raise NotImplementedError("Implement image preprocessing")
+        image = image.convert("RGB")
+        n = int(self.config.num_tiles**0.5)
+        image = torch.from_numpy(image)
+        image_size = image.shape[0]
+        image = image.resize(image_size // n, n, image_size // n, n, 3)
+        image = image.permute(1, 3, 4, 0, 2)
+        image = image.combine(0, 1)
+        return image
 
     def build_prompt(self, sample: MathVQASample, include_answer: bool) -> str:
         """Build a text prompt with visual special tokens and options.
@@ -48,7 +58,17 @@ class MathVLMProcessor:
         For training, include_answer=True should append the assistant answer.
         For inference, include_answer=False should stop before the answer.
         """
-        raise NotImplementedError("Implement prompt construction")
+        # raise NotImplementedError("Implement prompt construction")
+        # NOTE: missed TODO
+        return "\n".join(
+            [
+                f"{IMAGE_START_TOKEN}{IMAGE_TOKEN * self.config.num_image_tokens}{IMAGE_END_TOKEN}",
+                f"Question: {sample.question}",
+                "Options:",
+                *sample.options,
+                f"Answer: {'' if not include_answer else sample.answer}",
+            ]
+        )
 
     def tokenize_sample(self, sample: MathVQASample) -> dict[str, torch.Tensor]:
         """Return input_ids, attention_mask and labels for one sample.
@@ -56,7 +76,27 @@ class MathVLMProcessor:
         labels must be IGNORE_INDEX for prompt tokens and real token ids only
         for the assistant answer.
         """
-        raise NotImplementedError("Implement sample tokenization")
+        # raise NotImplementedError("Implement sample tokenization")
+        # NOTE: missed TODO
+
+        prompt_text = self.build_prompt(sample, include_answer=False)
+        full_text = self.build_prompt(sample, include_answer=True)
+
+        prompt_ids = self.tokenizer.encode(prompt_text, add_special_tokens=False)
+        full_ids = self.tokenizer.encode(full_text, add_special_tokens=False)
+
+        prompt_ids = prompt_ids[: self.config.max_length]
+        full_ids = full_ids[: self.config.max_length]
+
+        labels = full_ids.copy()
+        prompt_len = len(prompt_ids)
+        labels[:prompt_len] = [self.config.ignore_index] * prompt_len
+
+        return {
+            "input_ids": torch.tensor(full_ids, dtype=torch.long),
+            "attention_mask": torch.ones(len(full_ids), dtype=torch.long),
+            "labels": torch.tensor(labels, dtype=torch.long),
+        }
 
     def __call__(self, sample: MathVQASample) -> dict[str, torch.Tensor]:
         item = self.tokenize_sample(sample)
@@ -72,4 +112,36 @@ class MathVLMProcessor:
             - pad labels with ignore_index;
             - stack pixel_values into [B, T, 3, H, W].
         """
-        raise NotImplementedError("Implement collate_fn")
+        # raise NotImplementedError("Implement collate_fn")
+
+        max_len = max(item["input_ids"].size(0) for item in batch)
+
+        input_ids_pad = (
+            self.tokenizer.pad_token_id
+            if self.tokenizer.pad_token_id is not None
+            else 0
+        )
+
+        padded_input_ids = []
+        padded_attention_mask = []
+        padded_labels = []
+
+        for item in batch:
+            seq_len = item["input_ids"].size(0)
+            pad_len = max_len - seq_len
+
+            input_ids = F.pad(item["input_ids"], (0, pad_len), value=input_ids_pad)
+            padded_input_ids.append(input_ids)
+
+            attn_mask = F.pad(item["attention_mask"], (0, pad_len), value=0)
+            padded_attention_mask.append(attn_mask)
+
+            labels = F.pad(item["labels"], (0, pad_len), value=self.config.ignore_index)
+            padded_labels.append(labels)
+
+        return {
+            "input_ids": torch.stack(padded_input_ids, dim=0),
+            "attention_mask": torch.stack(padded_attention_mask, dim=0),
+            "labels": torch.stack(padded_labels, dim=0),
+            "pixel_values": torch.stack([item["pixel_values"] for item in batch], dim=0),
+        }
