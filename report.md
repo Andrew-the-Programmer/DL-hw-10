@@ -30,7 +30,11 @@ batch size:
 ## Результаты
 
 ```text
-public tests:
+public tests: 
+❯ python -m pytest tests_public/ -q
+..............                                                                                                                                                                                             [100%]
+14 passed in 3.73s
+
 train loss:
 benchmark accuracy:
 ```
