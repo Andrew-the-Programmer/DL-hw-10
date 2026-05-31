@@ -78,15 +78,11 @@ class MathVLMProcessor:
 
         image_token_id = self.tokenizer.convert_tokens_to_ids(IMAGE_TOKEN)
         if image_token_id == self.tokenizer.unk_token_id:
-            self.tokenizer.add_tokens([IMAGE_TOKEN], special_tokens=True)
-            image_token_id = self.tokenizer.convert_tokens_to_ids(IMAGE_TOKEN)
+            raise RuntimeError(f"Image token {IMAGE_TOKEN} not in tokenizer vocabulary")
 
         visual_ids = [image_token_id] * self.config.num_image_tokens
         full_ids = visual_ids + full_ids
         prompt_ids = visual_ids + prompt_ids
-
-        full_ids = full_ids[: self.config.max_length]
-        prompt_ids = prompt_ids[: self.config.max_length]
 
         prompt_len = len(prompt_ids)
         labels = full_ids.copy()

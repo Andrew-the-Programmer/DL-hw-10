@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import yaml
 
+from hw.constants import IMAGE_TOKEN
 from hw.dataset import MathVQADataset
 from hw.processor import MathVLMProcessor, ProcessorConfig
 from hw.model import MathVLM, ModelConfig
@@ -57,7 +58,9 @@ def train_one_step(
         print(loss)
         raise ValueError("Loss is not finite")
     loss.backward()
-    torch.nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, model.parameters()), max_norm=1.0)
+    torch.nn.utils.clip_grad_norm_(
+        filter(lambda p: p.requires_grad, model.parameters()), max_norm=1.0
+    )
     optimizer.step()
     return loss.item()
 
@@ -91,11 +94,12 @@ def run_training(config: dict[str, Any], fast_train: bool = False) -> None:
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    image_token_id = tokenizer.convert_tokens_to_ids("</tr>")
-    if image_token_id == tokenizer.unk_token_id:
-        tokenizer.add_tokens(["<tr>"], special_tokens=True)
+    if tokenizer.convert_tokens_to_ids(IMAGE_TOKEN) == tokenizer.unk_token_id:
+        tokenizer.add_tokens([IMAGE_TOKEN], special_tokens=True)
         language_model.resize_token_embeddings(len(tokenizer))
-        image_token_id = tokenizer.convert_tokens_to_ids("<tr>")
+        print(f"Added image token, new vocab size: {len(tokenizer)}")
+    image_token_id = tokenizer.convert_tokens_to_ids(IMAGE_TOKEN)
+    print(f"Image token ID: {image_token_id}")
 
     processor_cfg = config["processor"]
     processor_cfg = ProcessorConfig(
