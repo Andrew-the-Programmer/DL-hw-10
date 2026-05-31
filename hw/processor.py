@@ -45,12 +45,14 @@ class MathVLMProcessor:
         # raise NotImplementedError("Implement image preprocessing")
         image = image.convert("RGB")
         n = int(self.config.num_tiles**0.5)
-        image = torch.from_numpy(image)
-        image_size = image.shape[0]
-        image = image.resize(image_size // n, n, image_size // n, n, 3)
-        image = image.permute(1, 3, 4, 0, 2)
-        image = image.combine(0, 1)
-        return image
+        image_size = self.config.image_size
+        full_size = n * image_size
+        image = image.resize((full_size, full_size), Image.Resampling.BILINEAR)
+        image_tensor = torch.from_numpy(image)
+        image_tensor = image_tensor.view(n, image_size, n, image_size, 3)
+        image_tensor = image_tensor.permute(0, 2, 1, 3, 4)
+        image_tensor = image_tensor.reshape(self.config.num_tiles, image_size, image_size, 3)
+        return image_tensor
 
     def build_prompt(self, sample: MathVQASample, include_answer: bool) -> str:
         """Build a text prompt with visual special tokens and options.
@@ -143,5 +145,7 @@ class MathVLMProcessor:
             "input_ids": torch.stack(padded_input_ids, dim=0),
             "attention_mask": torch.stack(padded_attention_mask, dim=0),
             "labels": torch.stack(padded_labels, dim=0),
-            "pixel_values": torch.stack([item["pixel_values"] for item in batch], dim=0),
+            "pixel_values": torch.stack(
+                [item["pixel_values"] for item in batch], dim=0
+            ),
         }
