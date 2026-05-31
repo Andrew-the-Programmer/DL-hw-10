@@ -107,6 +107,6 @@ class MathVQADataset(Dataset[MathVQASample]):
             question=sanitize_question(row["question"]),
             options=row["options"],
             answer=row["answer"],
-            subject=row["subject"],
+            subject=row.get("subject", "unknown"),
             source=row.get("source", "unknown"),
         )

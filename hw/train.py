@@ -53,6 +53,8 @@ def train_one_step(
     optimizer.zero_grad()
     outputs = model(batch)
     loss = outputs.loss
+    if not torch.isfinite(loss):
+        raise ValueError("Loss is not finite")
     loss.backward()
     optimizer.step()
     return loss.item()
@@ -84,8 +86,8 @@ def run_training(config: dict[str, Any], fast_train: bool = False) -> None:
     vision_encoder = AutoModel.from_pretrained(model_cfg["vision_encoder"])
     language_model = AutoModelForCausalLM.from_pretrained(model_cfg["language_model"])
     tokenizer = AutoTokenizer.from_pretrained(model_cfg["language_model"])
-    # if tokenizer.pad_token is None:
-    #     tokenizer.pad_token = tokenizer.eos_token
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
 
     image_token_id = tokenizer.convert_tokens_to_ids("</tr>")
     if image_token_id == tokenizer.unk_token_id:
@@ -132,8 +134,7 @@ def run_training(config: dict[str, Any], fast_train: bool = False) -> None:
     )
 
     grad_accum_steps = (
-        trainer_cfg.get("global_batch_size", local_batch_size)
-        // local_batch_size
+        trainer_cfg.get("global_batch_size", local_batch_size) // local_batch_size
     )
     max_steps = trainer_cfg["max_steps"]
     if fast_train:

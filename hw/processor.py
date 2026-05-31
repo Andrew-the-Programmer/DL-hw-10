@@ -48,7 +48,8 @@ class MathVLMProcessor:
         image_size = self.config.image_size
         full_size = n * image_size
         image = image.resize((full_size, full_size), Image.Resampling.BILINEAR)
-        image_tensor = torch.from_numpy(image)
+        img_np = np.array(image).astype(np.float32) / 255.0
+        image_tensor = torch.from_numpy(img_np)
         image_tensor = image_tensor.view(n, image_size, n, image_size, 3)
         image_tensor = image_tensor.permute(0, 2, 1, 3, 4)
         image_tensor = image_tensor.reshape(self.config.num_tiles, image_size, image_size, 3)

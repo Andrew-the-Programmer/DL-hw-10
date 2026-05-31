@@ -36,7 +36,7 @@ def parse_mc_answer(text: str, choices: tuple[str, ...] = CHOICES) -> str | None
             "The correct answer is D."
     """
     patterns = [
-        rf"\b([{choices}])\b",  # standalone letter
+        fr"\b([{''.join(choices)}])\b",  # standalone letter
     ]
     for pat in patterns:
         m = re.search(pat, text)
