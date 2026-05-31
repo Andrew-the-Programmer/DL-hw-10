@@ -24,7 +24,7 @@ processor:
 
 trainer:
   device: cuda
-  dtype: float16
+  dtype: float32
   num_train_epochs: 1
   max_steps: 300
   local_batch_size: 1

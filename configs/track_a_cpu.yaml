@@ -7,8 +7,8 @@ data:
   max_samples: 8
 
 model:
-  vision_encoder: tiny/local-or-mocked
-  language_model: tiny/local-or-mocked
+  vision_encoder: google/vit-base-patch16-224
+  language_model: Qwen/Qwen2-0.5B-Instruct
   freeze_vision: true
   freeze_llm: true
   train_adapter: true
