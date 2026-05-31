@@ -52,10 +52,12 @@ def train_one_step(
     model.train()
     optimizer.zero_grad()
     outputs = model(batch)
-    loss = outputs.loss
+    loss = outputs.loss if hasattr(outputs, "loss") else outputs["loss"]
     if not torch.isfinite(loss):
+        print(loss)
         raise ValueError("Loss is not finite")
     loss.backward()
+    torch.nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, model.parameters()), max_norm=1.0)
     optimizer.step()
     return loss.item()
 
@@ -119,11 +121,16 @@ def run_training(config: dict[str, Any], fast_train: bool = False) -> None:
     processor = MathVLMProcessor(tokenizer, processor_cfg)
 
     local_batch_size = trainer_cfg["local_batch_size"]
+
+    def collate_fn(batch):
+        processed = [processor(sample) for sample in batch]
+        return processor.collate(processed)
+
     dataloader = DataLoader(
         dataset,
         batch_size=local_batch_size,
         shuffle=True,
-        collate_fn=processor.collate,
+        collate_fn=collate_fn,
         num_workers=trainer_cfg.get("num_workers", 0),
     )
 
@@ -133,14 +140,13 @@ def run_training(config: dict[str, Any], fast_train: bool = False) -> None:
         weight_decay=trainer_cfg["weight_decay"],
     )
 
-    grad_accum_steps = (
-        trainer_cfg.get("global_batch_size", local_batch_size) // local_batch_size
-    )
+    # grad_accum_steps = (
+    #     trainer_cfg.get("global_batch_size", local_batch_size) // local_batch_size
+    # )
     max_steps = trainer_cfg["max_steps"]
     if fast_train:
         max_steps = min(max_steps, 3)
 
-    accumulated_loss = 0.0
     model.train()
     for step, batch in enumerate(dataloader):
         if step >= max_steps:
@@ -151,11 +157,10 @@ def run_training(config: dict[str, Any], fast_train: bool = False) -> None:
             batch["pixel_values"] = batch["pixel_values"].to(dtype=dtype)
 
         loss_val = train_one_step(model, batch, optimizer)
-        accumulated_loss += loss_val
 
-        if (step + 1) % grad_accum_steps == 0:
-            optimizer.step()
-            optimizer.zero_grad()
+        # if (step + 1) % grad_accum_steps == 0:
+        #     optimizer.step()
+        #     optimizer.zero_grad()
 
         if step % 10 == 0:
             print(f"Step {step}/{max_steps}, loss: {loss_val:.4f}")

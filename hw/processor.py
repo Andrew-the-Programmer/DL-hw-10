@@ -61,43 +61,52 @@ class MathVLMProcessor:
         return image_tensor
 
     def build_prompt(self, sample: MathVQASample, include_answer: bool) -> str:
-        """Build a text prompt with visual special tokens and options.
-
-        For training, include_answer=True should append the assistant answer.
-        For inference, include_answer=False should stop before the answer.
-        """
-        # raise NotImplementedError("Implement prompt construction")
-        # NOTE: missed TODO
-        return "\n".join(
-            [
-                f"{IMAGE_START_TOKEN}{IMAGE_TOKEN * self.config.num_image_tokens}{IMAGE_END_TOKEN}",
-                f"Question: {sample.question}",
-                "Options:",
-                *sample.options,
-                f"Answer: {'' if not include_answer else sample.answer}",
-            ]
-        )
+        """Build a text prompt WITHOUT visual tokens (they will be inserted later)."""
+        options_text = "\n".join(sample.options)
+        prompt = f"Question: {sample.question}\nOptions:\n{options_text}\nAnswer:"
+        if include_answer:
+            prompt += f" {sample.answer}"
+        return prompt
 
     def tokenize_sample(self, sample: MathVQASample) -> dict[str, torch.Tensor]:
-        """Return input_ids, attention_mask and labels for one sample.
-
-        labels must be IGNORE_INDEX for prompt tokens and real token ids only
-        for the assistant answer.
-        """
-        # raise NotImplementedError("Implement sample tokenization")
-        # NOTE: missed TODO
-
+        """Return input_ids, attention_mask and labels with explicit visual token insertion."""
+        # 1. Build prompt without visual tokens
         prompt_text = self.build_prompt(sample, include_answer=False)
         full_text = self.build_prompt(sample, include_answer=True)
 
+        # 2. Tokenize text (no visual tokens yet)
         prompt_ids = self.tokenizer.encode(prompt_text, add_special_tokens=False)
         full_ids = self.tokenizer.encode(full_text, add_special_tokens=False)
 
-        prompt_ids = prompt_ids[: self.config.max_length]
-        full_ids = full_ids[: self.config.max_length]
+        # 3. Create visual token sequence: [start] + K * [image_token] + [end]
+        #    Ensure the tokenizer knows the image token
+        image_token_id = self.tokenizer.convert_tokens_to_ids("<tr>")
+        if image_token_id == self.tokenizer.unk_token_id:
+            # Fallback: use a known token (e.g., <unk>) – not ideal but prevents crash
+            image_token_id = self.tokenizer.unk_token_id
 
-        labels = full_ids.copy()
+        start_token_id = self.tokenizer.convert_tokens_to_ids("<image_start>")
+        end_token_id = self.tokenizer.convert_tokens_to_ids("<image_end>")
+        # If these are not in vocabulary, use a placeholder (or ignore)
+        visual_ids = []
+        if start_token_id != self.tokenizer.unk_token_id:
+            visual_ids.append(start_token_id)
+        visual_ids.extend([image_token_id] * self.config.num_image_tokens)
+        if end_token_id != self.tokenizer.unk_token_id:
+            visual_ids.append(end_token_id)
+
+        # 4. Insert visual tokens at the beginning of the sequence
+        full_ids = visual_ids + full_ids
+        prompt_ids = visual_ids + prompt_ids  # for label masking
+
+        # 5. Truncate if needed
+        if len(full_ids) > self.config.max_length:
+            full_ids = full_ids[: self.config.max_length]
+            prompt_ids = prompt_ids[: self.config.max_length]
+
+        # 6. Build labels: mask all tokens before the answer (prompt part)
         prompt_len = len(prompt_ids)
+        labels = full_ids.copy()
         labels[:prompt_len] = [self.config.ignore_index] * prompt_len
 
         return {

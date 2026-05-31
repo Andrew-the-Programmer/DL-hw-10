@@ -165,13 +165,15 @@ def run_benchmark(config: dict[str, Any], toy: bool = False) -> dict[str, float]
         pred_letter = parse_mc_answer(output_text)
         if pred_letter is None:
             pred_letter = "?"
-        predictions.append({
-            "id": sample.id,
-            "question": sample.question,
-            "ground_truth": sample.answer,
-            "prediction": pred_letter,
-            "subject": sample.subject,
-        })
+        predictions.append(
+            {
+                "id": sample.id,
+                "question": sample.question,
+                "ground_truth": sample.answer,
+                "prediction": pred_letter,
+                "subject": sample.subject,
+            }
+        )
 
     out_path = config["inference"].get("output_path")
     if out_path:
