@@ -101,11 +101,10 @@ def run_benchmark(config: dict[str, Any], toy: bool = False) -> dict[str, float]
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    special_tokens = [IMAGE_TOKEN]  # from constants
+    special_tokens = [IMAGE_TOKEN]
     tokenizer.add_tokens(special_tokens, special_tokens=True)
     language_model.resize_token_embeddings(len(tokenizer))
     image_token_id = tokenizer.convert_tokens_to_ids(IMAGE_TOKEN)
-    print(f"Image token ID after addition: {image_token_id}")  # debug
 
     proc_cfg = config["processor"]
     processor_config = ProcessorConfig(
@@ -117,12 +116,6 @@ def run_benchmark(config: dict[str, Any], toy: bool = False) -> dict[str, float]
     )
 
     processor = MathVLMProcessor(tokenizer, processor_config)
-
-    image_token_id = tokenizer.convert_tokens_to_ids("</tr>")
-    if image_token_id == tokenizer.unk_token_id:
-        tokenizer.add_tokens(["<table>"], special_tokens=True)
-        language_model.resize_token_embeddings(len(tokenizer))
-        image_token_id = tokenizer.convert_tokens_to_ids("<tr>")
 
     vision_hidden_size = vision_encoder.config.hidden_size
     text_hidden_size = language_model.config.hidden_size
