@@ -8,7 +8,7 @@ data:
 model:
   vision_encoder: google/vit-base-patch16-224
   language_model: Qwen/Qwen2-0.5B-Instruct
-  adapter_path: artifacts/adapter.safetensors
+  adapter_path: artifacts/adapter_medium.pt
   lora_path: null
 
 processor:
@@ -20,7 +20,7 @@ processor:
 
 inference:
   device: cuda
-  dtype: float16
+  dtype: float32
   max_new_tokens: 64
   temperature: 0.0
   do_sample: false

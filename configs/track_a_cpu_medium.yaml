@@ -26,10 +26,10 @@ trainer:
   device: cpu
   dtype: float32
   num_train_epochs: 1
-  max_steps: 20
+  max_steps: 21
   local_batch_size: 1
   global_batch_size: 1
-  learning_rate: 0.0005
+  learning_rate: 0.0001
   weight_decay: 0.0
   num_workers: 0
-  save_checkpoint_path: null
+  save_checkpoint_path: artifacts/adapter_medium.pt

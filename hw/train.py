@@ -166,7 +166,7 @@ def run_training(config: dict[str, Any], fast_train: bool = False) -> None:
         #     optimizer.step()
         #     optimizer.zero_grad()
 
-        if step % 10 == 0:
+        if step % 5 == 0:
             print(f"Step {step}/{max_steps}, loss: {loss_val:.4f}")
 
     save_checkpoint_path = trainer_cfg.get("save_checkpoint_path", None)
