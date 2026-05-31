@@ -76,25 +76,16 @@ class MathVLMProcessor:
         prompt_ids = self.tokenizer.encode(prompt_text, add_special_tokens=False)
         full_ids = self.tokenizer.encode(full_text, add_special_tokens=False)
 
-        image_token_id = self.tokenizer.convert_tokens_to_ids("<tr>")
+        image_token_id = self.tokenizer.convert_tokens_to_ids(IMAGE_TOKEN)
         if image_token_id == self.tokenizer.unk_token_id:
-            image_token_id = self.tokenizer.unk_token_id
+            raise RuntimeError(f"Image token {IMAGE_TOKEN} not in tokenizer vocabulary")
 
-        start_token_id = self.tokenizer.convert_tokens_to_ids("<image_start>")
-        end_token_id = self.tokenizer.convert_tokens_to_ids("<image_end>")
-        visual_ids = []
-        if start_token_id != self.tokenizer.unk_token_id:
-            visual_ids.append(start_token_id)
-        visual_ids.extend([image_token_id] * self.config.num_image_tokens)
-        if end_token_id != self.tokenizer.unk_token_id:
-            visual_ids.append(end_token_id)
-
+        visual_ids = [image_token_id] * self.config.num_image_tokens
         full_ids = visual_ids + full_ids
-        prompt_ids = visual_ids + prompt_ids  # for label masking
+        prompt_ids = visual_ids + prompt_ids
 
-        if len(full_ids) > self.config.max_length:
-            full_ids = full_ids[: self.config.max_length]
-            prompt_ids = prompt_ids[: self.config.max_length]
+        full_ids = full_ids[: self.config.max_length]
+        prompt_ids = prompt_ids[: self.config.max_length]
 
         prompt_len = len(prompt_ids)
         labels = full_ids.copy()
