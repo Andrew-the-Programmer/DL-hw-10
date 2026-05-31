@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
-from hw.constants import CHOICES
+from hw.constants import CHOICES, IMAGE_TOKEN
 from hw.dataset import MathVQADataset
 from hw.processor import MathVLMProcessor, ProcessorConfig
 from hw.model import MathVLM, ModelConfig
@@ -97,8 +97,15 @@ def run_benchmark(config: dict[str, Any], toy: bool = False) -> dict[str, float]
     vision_encoder = AutoModel.from_pretrained(model_cfg["vision_encoder"])
     language_model = AutoModelForCausalLM.from_pretrained(model_cfg["language_model"])
     tokenizer = AutoTokenizer.from_pretrained(model_cfg["language_model"])
+
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+
+    special_tokens = [IMAGE_TOKEN]  # from constants
+    tokenizer.add_tokens(special_tokens, special_tokens=True)
+    language_model.resize_token_embeddings(len(tokenizer))
+    image_token_id = tokenizer.convert_tokens_to_ids(IMAGE_TOKEN)
+    print(f"Image token ID after addition: {image_token_id}")  # debug
 
     proc_cfg = config["processor"]
     processor_config = ProcessorConfig(
@@ -108,6 +115,8 @@ def run_benchmark(config: dict[str, Any], toy: bool = False) -> dict[str, float]
         max_length=proc_cfg["max_length"],
         ignore_index=proc_cfg["ignore_index"],
     )
+
+    processor = MathVLMProcessor(tokenizer, processor_config)
 
     image_token_id = tokenizer.convert_tokens_to_ids("</tr>")
     if image_token_id == tokenizer.unk_token_id:

@@ -78,7 +78,8 @@ class MathVLMProcessor:
 
         image_token_id = self.tokenizer.convert_tokens_to_ids(IMAGE_TOKEN)
         if image_token_id == self.tokenizer.unk_token_id:
-            raise RuntimeError(f"Image token {IMAGE_TOKEN} not in tokenizer vocabulary")
+            self.tokenizer.add_tokens([IMAGE_TOKEN], special_tokens=True)
+            image_token_id = self.tokenizer.convert_tokens_to_ids(IMAGE_TOKEN)
 
         visual_ids = [image_token_id] * self.config.num_image_tokens
         full_ids = visual_ids + full_ids
